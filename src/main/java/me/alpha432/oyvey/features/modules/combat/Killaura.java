@@ -2,74 +2,71 @@ package me.alpha432.oyvey.features.modules.combat;
 
 import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.features.setting.Setting;
+import net.minecraft.client.entity.player.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.Hand;
 
 import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Killaura extends Module {
-
-    public enum TargetMode {
-        CLOSEST,
-        LOWEST_HEALTH
-    }
 
     public Setting<Float> range = this.register(new Setting<>("Range", 4.0f, 1.0f, 6.0f));
     public Setting<Boolean> rotate = this.register(new Setting<>("Rotate", true));
     public Setting<Integer> cps = this.register(new Setting<>("CPS", 10, 1, 20));
     public Setting<TargetMode> targetMode = this.register(new Setting<>("TargetMode", TargetMode.CLOSEST));
 
-    private long lastAttackTime = 0;
+    private enum TargetMode {
+        CLOSEST,
+        HEALTH,
+        RANDOM
+    }
 
     public Killaura() {
-        super("Killaura", "Automatically attacks nearby players.", Category.COMBAT, true, false, false);
+        super("Killaura", "Automatically attacks players around you", Category.COMBAT, true, false, false);
     }
 
     @Override
     public void onUpdate() {
-        if (mc.player == null || mc.world == null) return;
+        List<PlayerEntity> targets = mc.world.playerEntities.stream()
+                .filter(player -> player != mc.player && mc.player.getDistance(player) <= range.getValue())
+                .sorted(getComparator())
+                .collect(Collectors.toList());
 
-        Entity target = getTarget();
-        if (target != null && canAttack()) {
-            if (rotate.getValue()) faceEntity(target);
-            mc.playerController.attackEntity(mc.player, target);
-            mc.player.swingArm(mc.player.getActiveHand());
-            lastAttackTime = System.currentTimeMillis();
+        if (!targets.isEmpty()) {
+            attack(targets.get(0));
         }
-    }
-
-    private boolean canAttack() {
-        long delay = 1000 / cps.getValue();
-        return System.currentTimeMillis() - lastAttackTime >= delay;
-    }
-
-    private Entity getTarget() {
-        return mc.world.getPlayers().stream()
-                .filter(player -> player != mc.player)
-                .filter(player -> mc.player.getDistance(player) <= range.getValue())
-                .min(getComparator())
-                .orElse(null);
     }
 
     private Comparator<PlayerEntity> getComparator() {
         switch (targetMode.getValue()) {
-            case LOWEST_HEALTH:
+            case HEALTH:
                 return Comparator.comparingDouble(PlayerEntity::getHealth);
-            case CLOSEST:
+            case RANDOM:
+                return (a, b) -> (Math.random() < 0.5 ? -1 : 1);
             default:
                 return Comparator.comparingDouble(mc.player::getDistance);
         }
     }
 
-    private void faceEntity(Entity entity) {
-        double diffX = entity.getPosX() - mc.player.getPosX();
-        double diffZ = entity.getPosZ() - mc.player.getPosZ();
-        double diffY = entity.getPosY() + entity.getEyeHeight() - (mc.player.getPosY() + mc.player.getEyeHeight());
-        double dist = MathHelper.sqrt(diffX * diffX + diffZ * diffZ);
+    private void attack(PlayerEntity target) {
+        if (rotate.getValue()) {
+            faceTarget(target);
+        }
+        mc.player.swingArm(Hand.MAIN_HAND);
+        mc.player.attackTargetEntityWithCurrentItem(target);
+    }
 
-        float yaw = (float) (MathHelper.atan2(diffZ, diffX) * (180 / Math.PI)) - 90.0f;
-        float pitch = (float) -(MathHelper.atan2(diffY, dist) * (180 / Math.PI));
+    private void faceTarget(Entity target) {
+        double diffX = target.getPosX() - mc.player.getPosX();
+        double diffY = target.getPosY() + target.getEyeHeight(mc.player.getPose()) - (mc.player.getPosY() + mc.player.getEyeHeight(mc.player.getPose()));
+        double diffZ = target.getPosZ() - mc.player.getPosZ();
+
+        double dist = Math.sqrt(diffX * diffX + diffZ * diffZ);
+        float yaw = (float) Math.toDegrees(Math.atan2(diffZ, diffX)) - 90;
+        float pitch = (float) -Math.toDegrees(Math.atan2(diffY, dist));
 
         mc.player.rotationYaw = yaw;
         mc.player.rotationPitch = pitch;
