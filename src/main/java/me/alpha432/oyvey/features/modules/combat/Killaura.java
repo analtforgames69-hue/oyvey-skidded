@@ -1,8 +1,7 @@
 package me.alpha432.oyvey.features.modules.combat;
 
-import me.alpha432.oyvey.event.events.TickEvent;
 import me.alpha432.oyvey.features.modules.Module;
-import me.alpha432.oyvey.features.setting.Setting;
+import me.alpha432.oyvey.features.settings.Setting;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.mob.PhantomEntity;
@@ -17,46 +16,39 @@ import static me.alpha432.oyvey.OyVey.mc;
 public class Killaura extends Module {
 
     // Settings
-    public Setting<Float> range = register(new Setting<>("Range", 4.0f, 1.0f, 6.0f));
-    public Setting<Boolean> rotate = register(new Setting<>("Rotate", true));
+    public Setting<Float> range = new Setting<>("Range", 4.0f, 1.0f, 6.0f);
+    public Setting<Boolean> rotate = new Setting<>("Rotate", true);
 
-    // Entity selection list
-    public Setting<List<String>> targetEntities = register(new Setting<>("TargetEntities", new ArrayList<>(List.of("Player"))));
+    // Entity selection (use booleans for UI-friendly version)
+    public Setting<Boolean> targetPlayer = new Setting<>("Player", true);
+    public Setting<Boolean> targetPhantom = new Setting<>("Phantom", false);
 
     public Killaura() {
         super("Killaura", "Automatically attacks entities", Category.COMBAT, true, false, false);
+        addSettings(range, rotate, targetPlayer, targetPhantom);
     }
 
     @Override
-    public void onTick(TickEvent.Pre event) {
+    public void onUpdate() {
         if (mc.player == null || mc.world == null) return;
 
-        List<Entity> targets = getTargets();
-
-        for (Entity entity : targets) {
-            attackEntity(entity);
-        }
-    }
-
-    private List<Entity> getTargets() {
-        List<Entity> targets = new ArrayList<>();
-        for (Entity entity : mc.world.getEntities()) {
+        for (Entity entity : mc.world.getEntities()) { // getEntities() exists in 1.21.5 mappings as World.getEntities()
             if (!(entity instanceof LivingEntity)) continue;
             if (entity == mc.player) continue;
-            if (entity.getHealth() <= 0) continue; // 1.21.5 uses getHealth()
+            LivingEntity living = (LivingEntity) entity;
+            if (living.getHealth() <= 0) continue;
 
-            // Filter by selected entity types
-            if (entity instanceof PlayerEntity && targetEntities.getValue().contains("Player")) {
-                targets.add(entity);
-            } else if (entity instanceof PhantomEntity && targetEntities.getValue().contains("Phantom")) {
-                targets.add(entity);
+            // Check type
+            if (entity instanceof PlayerEntity && targetPlayer.getValue()) {
+                attackEntity(living);
+            } else if (entity instanceof PhantomEntity && targetPhantom.getValue()) {
+                attackEntity(living);
             }
         }
-        return targets;
     }
 
-    private void attackEntity(Entity entity) {
-        if (mc.player.getAttackCooldownProgress(0f) < 1.0f) return; // only attack when ready
+    private void attackEntity(LivingEntity entity) {
+        if (mc.player.getAttackCooldownProgress(0f) < 1.0f) return; // attack cooldown ready
         mc.player.attack(entity);
         mc.player.swingHand(Hand.MAIN_HAND);
     }
