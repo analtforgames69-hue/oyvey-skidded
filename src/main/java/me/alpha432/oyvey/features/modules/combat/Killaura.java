@@ -4,10 +4,10 @@ import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.features.setting.Setting;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
@@ -41,21 +41,25 @@ public class Killaura extends Module {
     private Player getTarget() {
         List<Player> players = mc.level.players();
         Player closest = null;
-        double closestDist = range.getValue();
+        double closestDist = range.getValue() * range.getValue();
 
         for (Player player : players) {
             if (player == mc.player || player.isDeadOrDying()) continue;
 
             double distance = mc.player.distanceToSqr(player);
-            if (distance <= closestDist * closestDist) {
-                if (targetMode.getValue() == TargetMode.CLOSEST) {
-                    closest = player;
-                    closestDist = distance;
-                } else if (targetMode.getValue() == TargetMode.HEALTH) {
-                    if (closest == null || player.getHealth() < closest.getHealth()) closest = player;
-                } else if (targetMode.getValue() == TargetMode.SMART) {
-                    // Smart targeting logic placeholder
-                    closest = player; // Simplified
+            if (distance <= closestDist) {
+                switch (targetMode.getValue()) {
+                    case CLOSEST:
+                        closest = player;
+                        closestDist = distance;
+                        break;
+                    case HEALTH:
+                        if (closest == null || player.getHealth() < closest.getHealth()) closest = player;
+                        break;
+                    case SMART:
+                        // Simplified smart targeting
+                        closest = player;
+                        break;
                 }
             }
         }
@@ -70,7 +74,17 @@ public class Killaura extends Module {
     }
 
     private void faceEntity(Entity entity) {
-        // Simple rotation logic placeholder
-        // Implement proper yaw/pitch rotation if needed
+        Vec3 eyesPos = mc.player.getEyePosition(1.0f);
+        Vec3 targetPos = entity.position().add(0, entity.getBbHeight() / 2.0, 0);
+        double dx = targetPos.x - eyesPos.x;
+        double dy = targetPos.y - eyesPos.y;
+        double dz = targetPos.z - eyesPos.z;
+
+        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
+        float pitch = (float) -Math.toDegrees(Math.atan2(dy, distanceXZ));
+
+        mc.player.setYRot(yaw);
+        mc.player.setXRot(pitch);
     }
 }
