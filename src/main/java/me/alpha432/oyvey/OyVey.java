@@ -8,12 +8,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class OyVey implements ModInitializer, ClientModInitializer {
-    public static final String NAME = "OyVey";
-    public static final String VERSION = "0.0.3 - " + SharedConstants.getGameVersion().getName();
+    public static final String NAME = "Ignite Client";
+    public static final String VERSION = "1.0.0 - " + SharedConstants.getGameVersion().getName();
 
     public static float TIMER = 1f;
 
-    public static final Logger LOGGER = LogManager.getLogger("OyVey");
+    public static final Logger LOGGER = LogManager.getLogger("Ignite");
     public static ServerManager serverManager;
     public static ColorManager colorManager;
     public static RotationManager rotationManager;
