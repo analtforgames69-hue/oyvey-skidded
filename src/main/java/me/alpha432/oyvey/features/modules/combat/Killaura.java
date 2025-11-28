@@ -1,90 +1,69 @@
 package me.alpha432.oyvey.features.modules.combat;
 
+import com.google.common.eventbus.Subscribe;
+import me.alpha432.oyvey.event.impl.PacketEvent;
 import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.features.setting.Setting;
+import me.alpha432.oyvey.util.models.Timer;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.phys.Vec3;
-
-import java.util.List;
+import java.util.Comparator;
 
 public class Killaura extends Module {
+    private final Timer timer = new Timer();
 
-    public enum TargetMode {
-        CLOSEST,
-        HEALTH,
-        SMART
+    public Killaura() {
+        super("Killaura", "Automatically attacks entities around you", Category.COMBAT, true, false, false);
     }
-
-    private final Minecraft mc = Minecraft.getInstance();
 
     public Setting<Float> range = register(new Setting<>("Range", 4.0f, 1.0f, 6.0f));
     public Setting<Boolean> rotate = register(new Setting<>("Rotate", true));
     public Setting<Integer> cps = register(new Setting<>("CPS", 10, 1, 20));
-    public Setting<TargetMode> targetMode = register(new Setting<>("TargetMode", TargetMode.CLOSEST));
 
-    public Killaura() {
-        super("Killaura", "Automatically attacks entities around you.", Category.COMBAT, true, false, false);
+    private PlayerEntity getTarget() {
+        if (mc.world == null || mc.player == null) return null;
+        return mc.world.getEntitiesByClass(PlayerEntity.class, mc.player.getBoundingBox().expand(range.get()), e -> e != mc.player && !e.isDead())
+                .stream()
+                .min(Comparator.comparingDouble(e -> mc.player.squaredDistanceTo(e)))
+                .orElse(null);
     }
 
-    @Override
-    public void onTick() {
-        if (mc.player == null || mc.level == null) return;
+    private void attack(PlayerEntity target) {
+        if (target == null || !timer.passedMs(1000 / cps.get())) return;
 
-        Player target = getTarget();
-        if (target != null) attack(target);
-    }
+        if (rotate.get()) faceEntity(target);
 
-    private Player getTarget() {
-        List<Player> players = mc.level.players();
-        Player closest = null;
-        double closestDist = range.getValue() * range.getValue();
-
-        for (Player player : players) {
-            if (player == mc.player || player.isDeadOrDying()) continue;
-
-            double distance = mc.player.distanceToSqr(player);
-            if (distance <= closestDist) {
-                switch (targetMode.getValue()) {
-                    case CLOSEST:
-                        closest = player;
-                        closestDist = distance;
-                        break;
-                    case HEALTH:
-                        if (closest == null || player.getHealth() < closest.getHealth()) closest = player;
-                        break;
-                    case SMART:
-                        // Simplified smart targeting
-                        closest = player;
-                        break;
-                }
-            }
-        }
-        return closest;
-    }
-
-    private void attack(Player target) {
-        if (rotate.getValue()) faceEntity(target);
-
-        mc.player.swing(InteractionHand.MAIN_HAND);
-        mc.player.attack(target);
+        mc.player.networkHandler.sendPacket(new PlayerInteractEntityC2SPacket(target, Hand.MAIN_HAND));
+        mc.player.swingHand(Hand.MAIN_HAND);
+        timer.reset();
     }
 
     private void faceEntity(Entity entity) {
-        Vec3 eyesPos = mc.player.getEyePosition(1.0f);
-        Vec3 targetPos = entity.position().add(0, entity.getBbHeight() / 2.0, 0);
-        double dx = targetPos.x - eyesPos.x;
-        double dy = targetPos.y - eyesPos.y;
-        double dz = targetPos.z - eyesPos.z;
+        if (mc.player == null || entity == null) return;
 
-        double distanceXZ = Math.sqrt(dx * dx + dz * dz);
-        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
-        float pitch = (float) -Math.toDegrees(Math.atan2(dy, distanceXZ));
+        Vec3d diff = entity.getPos().subtract(mc.player.getPos());
+        float yaw = (float) Math.toDegrees(Math.atan2(diff.z, diff.x)) - 90f;
+        float pitch = (float) -Math.toDegrees(Math.atan2(diff.y, Math.sqrt(diff.x * diff.x + diff.z * diff.z)));
 
-        mc.player.setYRot(yaw);
-        mc.player.setXRot(pitch);
+        mc.player.setYaw(yaw);
+        mc.player.setPitch(pitch);
+    }
+
+    @Subscribe
+    private void onPacketSend(PacketEvent.Send event) {
+        PlayerEntity target = getTarget();
+        attack(target);
+    }
+
+    @Override
+    public String getDisplayInfo() {
+        PlayerEntity target = getTarget();
+        return target != null ? target.getName().getString() : null;
     }
 }
