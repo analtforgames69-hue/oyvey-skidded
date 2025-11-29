@@ -8,6 +8,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.Minecraft;
 
+@Environment(EnvType.CLIENT)
 public class Killaura extends Module {
 
     private final Minecraft mc = Minecraft.getInstance();
