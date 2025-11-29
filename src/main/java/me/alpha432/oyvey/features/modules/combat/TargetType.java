@@ -39,6 +39,5 @@ public enum TargetType {
     PIG,
     COW,
     SHEEP,
-    CHICKEN,
-    // Add more mobs if needed
+    CHICKEN
 }
