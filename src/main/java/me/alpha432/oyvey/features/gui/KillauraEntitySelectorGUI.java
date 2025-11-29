@@ -1,10 +1,11 @@
 package me.alpha432.oyvey.features.gui;
 
 import me.alpha432.oyvey.features.modules.combat.TargetType;
-import net.minecraft.client.util.math.MatrixStack;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.math.MatrixStack;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -13,7 +14,7 @@ public class KillauraEntitySelectorGUI {
 
     private final Map<TargetType, Boolean> targetToggles = new EnumMap<>(TargetType.class);
     private String searchQuery = "";
-    private final Minecraft mc = Minecraft.getInstance();
+    private final MinecraftClient mc = MinecraftClient.getInstance();
 
     public KillauraEntitySelectorGUI() {
         for (TargetType type : TargetType.values()) {
@@ -36,7 +37,7 @@ public class KillauraEntitySelectorGUI {
     public List<TargetType> getVisibleTargets() {
         return Arrays.stream(TargetType.values())
                 .filter(t -> t.name().toLowerCase().contains(searchQuery))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public void render(MatrixStack matrices, int mouseX, int mouseY) {
