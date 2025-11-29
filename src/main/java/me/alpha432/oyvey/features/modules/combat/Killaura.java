@@ -1,69 +1,80 @@
 package me.alpha432.oyvey.features.modules.combat;
 
 import me.alpha432.oyvey.features.modules.Module;
-import me.alpha432.oyvey.util.MathUtil;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
+import me.alpha432.oyvey.features.gui.KillauraEntitySelectorGUI;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.Hand;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.Minecraft;
 
 public class Killaura extends Module {
 
-    private final MinecraftClient mc = MinecraftClient.getInstance();
-
-    // Settings
-    private boolean attackPlayers = true;  // default target
-    private boolean attackMobs = false;    // optional
-    private double range = 4.5;            // configurable reach
-    private float rotationSpeed = 0.3f;    // smooth rotation factor
+    private final Minecraft mc = Minecraft.getInstance();
+    private final KillauraEntitySelectorGUI selectorGUI = new KillauraEntitySelectorGUI();
+    private float rotationSpeed = 10.0f; // degrees per tick
 
     public Killaura() {
-        super("Killaura", "Automatically attacks targets", Module.Category.COMBAT, true, false, false);
+        super("Killaura", "Automatically attacks entities", Category.COMBAT, true, false, false);
     }
 
     @Override
     public void onTick() {
         if (mc.player == null || mc.world == null) return;
 
-        for (Entity entity : mc.world.getEntities()) {
-            if (!isValidTarget(entity)) continue;
+        mc.world.getEntities().forEach(entity -> {
+            if (!(entity instanceof LivingEntity) || entity == mc.player) return;
 
-            // Rotate player model/head toward target
-            rotateHead(entity);
+            TargetType type = getEntityType(entity);
+            if (type != null && selectorGUI.isEnabled(type)) {
+                rotateHeadSmoothly(mc.player, entity);
+                attackEntityIfReady(mc.player, entity);
+            }
+        });
+    }
 
-            // Attack target
-            mc.interactionManager.attackEntity(mc.player, entity);
-            mc.player.swingHand(Hand.MAIN_HAND);
+    private TargetType getEntityType(net.minecraft.entity.Entity entity) {
+        if (entity instanceof PlayerEntity) return TargetType.PLAYER;
+        return null; // Expand this mapping for other mobs if needed
+    }
+
+    private void rotateHeadSmoothly(ClientPlayerEntity player, net.minecraft.entity.Entity target) {
+        Vec3d eyePos = player.getEyePos();
+        Vec3d targetPos = target.getEyePos();
+        float[] angles = calcAngle(eyePos, targetPos);
+
+        float yawDelta = wrapDegrees(angles[0] - player.getYaw());
+        float pitchDelta = wrapDegrees(angles[1] - player.getPitch());
+
+        player.setYaw(player.getYaw() + Math.signum(yawDelta) * Math.min(rotationSpeed, Math.abs(yawDelta)));
+        player.setPitch(player.getPitch() + Math.signum(pitchDelta) * Math.min(rotationSpeed, Math.abs(pitchDelta)));
+    }
+
+    private void attackEntityIfReady(ClientPlayerEntity player, net.minecraft.entity.Entity target) {
+        if (player.getAttackCooldownProgress(0.5f) >= 1.0f) {
+            mc.interactionManager.attackEntity(player, target);
+            player.swingHand(player.getActiveHand());
         }
     }
 
-    private boolean isValidTarget(Entity entity) {
-        if (!(entity instanceof LivingEntity)) return false;
-        if (entity == mc.player) return false;
-        if (entity.isRemoved()) return false;
-        if (mc.player.distanceTo(entity) > range) return false;
-
-        if (entity instanceof PlayerEntity && attackPlayers) return true;
-        if (!(entity instanceof PlayerEntity) && attackMobs) return true;
-
-        return false;
+    private float[] calcAngle(Vec3d from, Vec3d to) {
+        double dx = to.x - from.x;
+        double dy = to.y - from.y;
+        double dz = to.z - from.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
+        float pitch = (float) -Math.toDegrees(Math.atan2(dy, dist));
+        return new float[]{yaw, pitch};
     }
 
-    private void rotateHead(Entity target) {
-        float[] angles = MathUtil.calcAngle(mc.player.getEyePos(), target.getEyePos());
-        float yaw = angles[0];
-        float pitch = angles[1];
-
-        mc.player.headYaw = MathHelper.lerp(rotationSpeed, mc.player.headYaw, yaw);
-        mc.player.bodyYaw = MathHelper.lerp(rotationSpeed, mc.player.bodyYaw, yaw);
-        mc.player.pitch = MathHelper.lerp(rotationSpeed, mc.player.pitch, pitch);
+    private float wrapDegrees(float value) {
+        value %= 360;
+        if (value >= 180) value -= 360;
+        if (value < -180) value += 360;
+        return value;
     }
 
-    // Optional setters for GUI
-    public void setAttackPlayers(boolean val) { attackPlayers = val; }
-    public void setAttackMobs(boolean val) { attackMobs = val; }
-    public void setRange(double val) { range = val; }
-    public void setRotationSpeed(float val) { rotationSpeed = val; }
+    public KillauraEntitySelectorGUI getSelectorGUI() {
+        return selectorGUI;
+    }
 }
