@@ -1,79 +1,79 @@
 package me.alpha432.oyvey.features.modules.combat;
 
-import me.alpha432.oyvey.features.gui.items.buttons.BooleanButton;
-import me.alpha432.oyvey.features.gui.items.buttons.BindButton;
-import me.alpha432.oyvey.features.gui.items.buttons.EntityListButton;
+import me.alpha432.oyvey.OyVey;
+import me.alpha432.oyvey.event.events.UpdateWalkingPlayerEvent;
 import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.features.settings.Setting;
-import net.minecraft.client.network.ClientPlayerEntity;
+import me.alpha432.oyvey.features.settings.Bind;
+import me.alpha432.oyvey.features.gui.items.buttons.BindButton;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.entity.mob.PhantomEntity;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.world.World;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class Killaura extends Module {
 
-    // Settings
-    public Setting<Boolean> targetPlayers;
-    public Setting<Boolean> targetPhantoms;
+    public Setting<Bind> bind = register(new Setting<>("Keybind", new Bind(-1)));
+    public Setting<TargetMode> targetMode = register(new Setting<>("Target", TargetMode.Players));
 
-    // GUI buttons
-    private final List<BooleanButton> entityButtons = new ArrayList<>();
-    public EntityListButton entityListButton;
-    public BindButton bindButton;
+    private BindButton bindButton;
 
     public Killaura() {
-        super("Killaura", "Automatically attacks selected entities around you", Module.Category.COMBAT, true, false, false);
-
-        // Settings
-        targetPlayers = register(new Setting<>("Players", true));
-        targetPhantoms = register(new Setting<>("Phantoms", false));
-
-        // Buttons for GUI
-        entityButtons.add(new BooleanButton(targetPlayers));
-        entityButtons.add(new BooleanButton(targetPhantoms));
-
-        // Entity list GUI button
-        entityListButton = new EntityListButton("Target Entities", this);
-
-        // Bind button
-        bindButton = new BindButton(this);
+        super("Killaura", "Automatically attacks nearby entities", Category.COMBAT, true, false, false);
+        bindButton = new BindButton(bind);
     }
 
-    public List<BooleanButton> getEntityButtons() {
-        return entityButtons;
+    public enum TargetMode {
+        Players,
+        Phantoms
     }
 
     @Override
-    public void onTick() {
-        if (!isOn() || fullNullCheck()) return;
+    public void onUpdate() {
+        if (!this.isEnabled()) return;
+        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+        World world = MinecraftClient.getInstance().world;
 
-        ClientPlayerEntity player = mc.player;
+        if (player == null || world == null) return;
 
-        // Only attack when attack indicator is full (cooldown ready)
-        if (!player.getAttackCooldownProgress(0f).equals(1.0f)) return;
+        float cooldown = player.getAttackCooldownProgress(0f);
+        if (cooldown < 1.0f) return; // Only attack when cooldown is full
 
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity == player) continue;
+        List<Entity> entities = world.getEntitiesByClass(Entity.class, new Box(
+                player.getX() - 4, player.getY() - 4, player.getZ() - 4,
+                player.getX() + 4, player.getY() + 4, player.getZ() + 4), 
+                e -> e != player && isValidTarget(e)
+        );
 
-            // Only attack selected entity types
-            if ((entity instanceof PlayerEntity && !targetPlayers.getValue()) ||
-                (entity.getType().getName().getString().equalsIgnoreCase("phantom") && !targetPhantoms.getValue()))
-                continue;
-
-            // Distance check (3 blocks)
-            if (player.squaredDistanceTo(entity) <= 9.0) {
-                // Attack
-                player.attack(entity);
-                player.swingHand(player.getActiveHand());
-            }
+        for (Entity target : entities) {
+            attack(target, player);
         }
     }
 
-    public static boolean fullNullCheck() {
-        return mc.player == null || mc.world == null;
+    private boolean isValidTarget(Entity entity) {
+        switch (targetMode.getValue()) {
+            case Players:
+                return entity instanceof PlayerEntity;
+            case Phantoms:
+                return entity instanceof PhantomEntity;
+        }
+        return false;
+    }
+
+    private void attack(Entity target, ClientPlayerEntity player) {
+        player.attack(target);
+        player.swingHand(Hand.MAIN_HAND);
+    }
+
+    public BindButton getBindButton() {
+        return bindButton;
     }
 }
