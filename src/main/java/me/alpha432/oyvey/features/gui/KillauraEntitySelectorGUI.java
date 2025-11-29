@@ -7,6 +7,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Environment(EnvType.CLIENT)
 public class KillauraEntitySelectorGUI {
 
     private final Map<TargetType, Boolean> targetToggles = new EnumMap<>(TargetType.class);
