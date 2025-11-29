@@ -1,18 +1,17 @@
 package me.alpha432.oyvey.features.gui;
 
 import me.alpha432.oyvey.features.modules.combat.TargetType;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.render.TextLayerType;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Environment(EnvType.CLIENT)
+@net.fabricmc.api.EnvType(net.fabricmc.api.EnvType.CLIENT)
 public class KillauraEntitySelectorGUI {
 
     private final Map<TargetType, Boolean> targetToggles = new EnumMap<>(TargetType.class);
@@ -40,28 +39,30 @@ public class KillauraEntitySelectorGUI {
     public List<TargetType> getVisibleTargets() {
         return Arrays.stream(TargetType.values())
                 .filter(t -> t.name().toLowerCase().contains(searchQuery))
-                .toList();
+                .collect(Collectors.toList());
     }
 
-public void render(MatrixStack matrices, int mouseX, int mouseY) {
-    int y = 20;
+    public void render(MatrixStack matrices, int mouseX, int mouseY) {
+        int y = 20;
 
-    // 'mc.textRenderer' still exists, but you need a VertexConsumerProvider
-    VertexConsumerProvider.Immediate vertexConsumers = mc.getBufferBuilders().getEntityVertexConsumers();
+        TextRenderer textRenderer = mc.textRenderer;
+        VertexConsumerProvider.Immediate vertexConsumers = mc.getBufferBuilders().getEntityVertexConsumers();
 
-    // Draw search query
-    mc.textRenderer.draw(matrices, Text.of("Search: " + searchQuery), 10f, 10f, 0xFFFFFF, false, matrices.peek().getPositionMatrix(), vertexConsumers, TextLayerType.NORMAL, 0, 15728880);
+        // Draw search query
+        textRenderer.draw(matrices, Text.of("Search: " + searchQuery), 10f, 10f, 0xFFFFFF, false,
+                matrices.peek().getPositionMatrix(), vertexConsumers, TextLayerType.NORMAL, 0, 15728880);
 
-    // Draw targets
-    for (TargetType type : getVisibleTargets()) {
-        boolean enabled = isEnabled(type);
-        String labelStr = (enabled ? "[X] " : "[ ] ") + type.name();
-        mc.textRenderer.draw(matrices, Text.of(labelStr), 10f, (float)y, 0xFFFFFF, false, matrices.peek().getPositionMatrix(), vertexConsumers, TextLayerType.NORMAL, 0, 15728880);
-        y += 12;
+        // Draw target types
+        for (TargetType type : getVisibleTargets()) {
+            boolean enabled = isEnabled(type);
+            String labelStr = (enabled ? "[X] " : "[ ] ") + type.name();
+            textRenderer.draw(matrices, Text.of(labelStr), 10f, (float)y, 0xFFFFFF, false,
+                    matrices.peek().getPositionMatrix(), vertexConsumers, TextLayerType.NORMAL, 0, 15728880);
+            y += 12;
+        }
+
+        vertexConsumers.draw(); // flush the buffer
     }
-
-    vertexConsumers.draw(); // flush the buffer
-}
 
     public void handleClick(double mouseX, double mouseY) {
         int y = 20;
