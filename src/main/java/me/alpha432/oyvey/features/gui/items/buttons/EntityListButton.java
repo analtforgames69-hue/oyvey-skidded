@@ -1,80 +1,42 @@
 package me.alpha432.oyvey.features.gui.items.buttons;
 
-import me.alpha432.oyvey.OyVey;
-import me.alpha432.oyvey.features.gui.items.Item;
+import me.alpha432.oyvey.features.gui.items.buttons.Button;
 import me.alpha432.oyvey.features.modules.combat.Killaura;
 import net.minecraft.client.gui.DrawContext;
+import me.alpha432.oyvey.util.ColorUtil;
+import me.alpha432.oyvey.OyVey;
 
-import java.util.ArrayList;
-import java.util.List;
+public class EntityListButton extends Button {
 
-public class EntityListButton extends Item {
     private final Killaura killaura;
-    private final List<Button> entityButtons = new ArrayList<>();
 
-    public EntityListButton(Killaura killaura) {
-        super("Target Entity");
-        this.killaura = killaura;
-
-        // Create buttons for each entity type
-        entityButtons.add(new Button("Player") {
-            @Override
-            public void onMouseClick() {
-                super.onMouseClick();
-                killaura.setTargetEntity("Player");
-                updateButtonStates("Player");
-            }
-        });
-        entityButtons.add(new Button("Phantom") {
-            @Override
-            public void onMouseClick() {
-                super.onMouseClick();
-                killaura.setTargetEntity("Phantom");
-                updateButtonStates("Phantom");
-            }
-        });
-
-        // Initialize buttons positions
-        float offsetY = this.y + this.height;
-        for (Button btn : entityButtons) {
-            btn.setWidth(this.width); // match parent width
-            btn.setHeight(14);
-            btn.setX(this.x);
-            btn.setY(offsetY);
-            offsetY += btn.getHeight();
-        }
-    }
-
-    private void updateButtonStates(String selected) {
-        for (Button btn : entityButtons) {
-            btn.state = btn.getName().equals(selected);
-        }
+    public EntityListButton(Killaura ka) {
+        super("Target");
+        this.killaura = ka;
+        this.height = 14; // match your other buttons
+        this.width = 50;  // reasonable default width
     }
 
     @Override
     public void drawScreen(DrawContext context, int mouseX, int mouseY, float partialTicks) {
-        super.drawScreen(context, mouseX, mouseY, partialTicks);
-        for (Button btn : entityButtons) {
-            btn.drawScreen(context, mouseX, mouseY, partialTicks);
+        int color = ColorUtil.toARGB(255, 255, 255, 150); // simple hover effect
+        if (this.isHovering(mouseX, mouseY)) {
+            color = ColorUtil.toARGB(255, 255, 255, 255);
         }
+
+        // Draw button background
+        RenderUtil.rect(context.getMatrices(), this.x, this.y, this.x + this.width, this.y + this.height, color);
+
+        // Draw the text: current target
+        drawString("Target: " + killaura.targetEntity, this.x + 2.3f, this.y + 2.0f, -1);
     }
 
     @Override
-    public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
-        super.mouseClicked(mouseX, mouseY, mouseButton);
-        for (Button btn : entityButtons) {
-            btn.mouseClicked(mouseX, mouseY, mouseButton);
-        }
-    }
-
-    @Override
-    public void setLocation(float x, float y) {
-        super.setLocation(x, y);
-        float offsetY = y + this.height;
-        for (Button btn : entityButtons) {
-            btn.setX(x);
-            btn.setY(offsetY);
-            offsetY += btn.getHeight();
+    public void onMouseClick() {
+        if (killaura.targetEntity.equals("Player")) {
+            killaura.targetEntity = "Phantom";
+        } else {
+            killaura.targetEntity = "Player";
         }
     }
 }
