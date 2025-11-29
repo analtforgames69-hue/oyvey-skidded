@@ -1,67 +1,80 @@
 package me.alpha432.oyvey.features.gui.items.buttons;
 
+import me.alpha432.oyvey.OyVey;
+import me.alpha432.oyvey.features.gui.items.Item;
 import me.alpha432.oyvey.features.modules.combat.Killaura;
-import me.alpha432.oyvey.util.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundEvents;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class EntityListButton extends Button {
-    private final Killaura module;
-    private boolean extended = false;
+public class EntityListButton extends Item {
+    private final Killaura killaura;
+    private final List<Button> entityButtons = new ArrayList<>();
 
-    public EntityListButton(String name, Killaura module) {
-        super(name);
-        this.module = module;
-        this.setHeight(15);
+    public EntityListButton(Killaura killaura) {
+        super("Target Entity");
+        this.killaura = killaura;
+
+        // Create buttons for each entity type
+        entityButtons.add(new Button("Player") {
+            @Override
+            public void onMouseClick() {
+                super.onMouseClick();
+                killaura.setTargetEntity("Player");
+                updateButtonStates("Player");
+            }
+        });
+        entityButtons.add(new Button("Phantom") {
+            @Override
+            public void onMouseClick() {
+                super.onMouseClick();
+                killaura.setTargetEntity("Phantom");
+                updateButtonStates("Phantom");
+            }
+        });
+
+        // Initialize buttons positions
+        float offsetY = this.y + this.height;
+        for (Button btn : entityButtons) {
+            btn.setWidth(this.width); // match parent width
+            btn.setHeight(14);
+            btn.setX(this.x);
+            btn.setY(offsetY);
+            offsetY += btn.getHeight();
+        }
+    }
+
+    private void updateButtonStates(String selected) {
+        for (Button btn : entityButtons) {
+            btn.state = btn.getName().equals(selected);
+        }
     }
 
     @Override
     public void drawScreen(DrawContext context, int mouseX, int mouseY, float partialTicks) {
-        // Draw main button
-        RenderUtil.rect(context.getMatrices(), this.getX(), this.getY(),
-                this.getX() + this.getWidth(), this.getY() + this.getHeight() - 0.5f,
-                this.isHovering(mouseX, mouseY) ? 0x77111111 : 0x55111111);
-        drawString(this.getName(), this.getX() + 2.3f, this.getY() - 2.0f, -1);
-
-        // Draw extended entity toggles
-        if (extended) {
-            List<BooleanButton> entityButtons = module.getEntityButtons();
-            float offsetY = this.getY() + this.getHeight();
-            for (BooleanButton btn : entityButtons) {
-                btn.setX(this.getX());
-                btn.setY(offsetY);
-                btn.setWidth(this.getWidth());
-                btn.drawScreen(context, mouseX, mouseY, partialTicks);
-                offsetY += btn.getHeight();
-            }
+        super.drawScreen(context, mouseX, mouseY, partialTicks);
+        for (Button btn : entityButtons) {
+            btn.drawScreen(context, mouseX, mouseY, partialTicks);
         }
     }
 
     @Override
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
-        if (mouseButton == 0 && this.isHovering(mouseX, mouseY)) {
-            this.extended = !this.extended;
-            mc.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1f));
-        }
-
-        if (extended) {
-            for (BooleanButton btn : module.getEntityButtons()) {
-                btn.mouseClicked(mouseX, mouseY, mouseButton);
-            }
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+        for (Button btn : entityButtons) {
+            btn.mouseClicked(mouseX, mouseY, mouseButton);
         }
     }
 
     @Override
-    public int getHeight() {
-        int baseHeight = 14;
-        if (extended) {
-            for (BooleanButton btn : module.getEntityButtons()) {
-                baseHeight += btn.getHeight();
-            }
+    public void setLocation(float x, float y) {
+        super.setLocation(x, y);
+        float offsetY = y + this.height;
+        for (Button btn : entityButtons) {
+            btn.setX(x);
+            btn.setY(offsetY);
+            offsetY += btn.getHeight();
         }
-        return baseHeight;
     }
 }
