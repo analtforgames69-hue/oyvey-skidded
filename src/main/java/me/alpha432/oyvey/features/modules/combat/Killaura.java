@@ -2,70 +2,68 @@ package me.alpha432.oyvey.features.modules.combat;
 
 import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.util.MathUtil;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.MathHelper;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.util.Hand;
 
 public class Killaura extends Module {
 
-    public float range = 4.5f; // configurable attack range
-    public float rotationSpeed = 10f; // smooth rotation speed
-    public boolean rotate = true; // rotate towards target
-    private Entity target;
+    private final MinecraftClient mc = MinecraftClient.getInstance();
+
+    // Settings
+    private boolean attackPlayers = true;  // default target
+    private boolean attackMobs = false;    // optional
+    private double range = 4.5;            // configurable reach
+    private float rotationSpeed = 0.3f;    // smooth rotation factor
 
     public Killaura() {
-        super("Killaura", "Automatically attacks enemies", Module.Category.COMBAT, true, false, true);
+        super("Killaura", "Automatically attacks targets", Module.Category.COMBAT, true, false, false);
     }
 
     @Override
-    public void onUpdate() {
-        if (!this.isEnabled()) return;
-
-        // Select target
-        target = getClosestTarget(range);
-        if (target == null) return;
-
-        // Rotate toward target if enabled
-        if (rotate) {
-            Vec3d eyes = mc.player.getEyePos();
-            Vec3d targetPos = target.getEyePos();
-            float[] angles = MathUtil.calcAngle(eyes, targetPos);
-            float yaw = smoothRotation(mc.player.getYaw(), angles[0], rotationSpeed);
-            float pitch = smoothRotation(mc.player.getPitch(), angles[1], rotationSpeed);
-            mc.player.setYaw(yaw);
-            mc.player.setPitch(pitch);
-        }
-
-        // Attack if ready (uses Minecraft's cooldown system)
-        if (mc.player.getAttackCooldownProgress(0f) >= 1.0f && mc.player.distanceTo(target) <= range) {
-            mc.player.attack(target);
-            mc.player.swingHand(mc.player.getActiveHand());
-        }
-    }
-
-    private Entity getClosestTarget(double range) {
-        Entity closest = null;
-        double shortestDistance = range;
+    public void onTick() {
+        if (mc.player == null || mc.world == null) return;
 
         for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof LivingEntity && entity != mc.player && mc.player.distanceTo(entity) <= range && !entity.isRemoved()) {
-                double dist = mc.player.distanceTo(entity);
-                if (dist < shortestDistance) {
-                    shortestDistance = dist;
-                    closest = entity;
-                }
-            }
+            if (!isValidTarget(entity)) continue;
+
+            // Rotate player model/head toward target
+            rotateHead(entity);
+
+            // Attack target
+            mc.interactionManager.attackEntity(mc.player, entity);
+            mc.player.swingHand(Hand.MAIN_HAND);
         }
-        return closest;
     }
 
-    private float smoothRotation(float current, float target, float speed) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > speed) delta = speed;
-        if (delta < -speed) delta = -speed;
-        return current + delta;
+    private boolean isValidTarget(Entity entity) {
+        if (!(entity instanceof LivingEntity)) return false;
+        if (entity == mc.player) return false;
+        if (entity.isRemoved()) return false;
+        if (mc.player.distanceTo(entity) > range) return false;
+
+        if (entity instanceof PlayerEntity && attackPlayers) return true;
+        if (!(entity instanceof PlayerEntity) && attackMobs) return true;
+
+        return false;
     }
+
+    private void rotateHead(Entity target) {
+        float[] angles = MathUtil.calcAngle(mc.player.getEyePos(), target.getEyePos());
+        float yaw = angles[0];
+        float pitch = angles[1];
+
+        mc.player.headYaw = MathHelper.lerp(rotationSpeed, mc.player.headYaw, yaw);
+        mc.player.bodyYaw = MathHelper.lerp(rotationSpeed, mc.player.bodyYaw, yaw);
+        mc.player.pitch = MathHelper.lerp(rotationSpeed, mc.player.pitch, pitch);
+    }
+
+    // Optional setters for GUI
+    public void setAttackPlayers(boolean val) { attackPlayers = val; }
+    public void setAttackMobs(boolean val) { attackMobs = val; }
+    public void setRange(double val) { range = val; }
+    public void setRotationSpeed(float val) { rotationSpeed = val; }
 }
