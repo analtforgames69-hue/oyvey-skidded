@@ -1,7 +1,6 @@
 package me.alpha432.oyvey.features.gui.items.buttons;
 
 import me.alpha432.oyvey.features.modules.combat.Killaura;
-import me.alpha432.oyvey.features.gui.items.Item;
 import me.alpha432.oyvey.util.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -16,36 +15,26 @@ public class EntityListButton extends Button {
     public EntityListButton(String name, Killaura module) {
         super(name);
         this.module = module;
-        this.height = 15;
+        this.setHeight(15);
     }
 
     @Override
     public void drawScreen(DrawContext context, int mouseX, int mouseY, float partialTicks) {
-
-        // Draw the main button
-        RenderUtil.rect(context.getMatrices(),
-                this.getX(), this.getY(),
-                this.getX() + (float) this.getWidth(),
-                this.getY() + (float) this.getHeight() - 0.5f,
+        // Draw main button
+        RenderUtil.rect(context.getMatrices(), this.getX(), this.getY(),
+                this.getX() + this.getWidth(), this.getY() + this.getHeight() - 0.5f,
                 this.isHovering(mouseX, mouseY) ? 0x77111111 : 0x55111111);
-
         drawString(this.getName(), this.getX() + 2.3f, this.getY() - 2.0f, -1);
 
-        // Draw extended list
+        // Draw extended entity toggles
         if (extended) {
-            List<BooleanButton> btns = module.getEntityButtons();
+            List<BooleanButton> entityButtons = module.getEntityButtons();
             float offsetY = this.getY() + this.getHeight();
-
-            for (BooleanButton btn : btns) {
-
-                // FIXED — uses setLocation() from Item.java
-                btn.setLocation(this.getX(), offsetY);
-
-                // width must be set through setter (exists)
+            for (BooleanButton btn : entityButtons) {
+                btn.setX(this.getX());
+                btn.setY(offsetY);
                 btn.setWidth(this.getWidth());
-
                 btn.drawScreen(context, mouseX, mouseY, partialTicks);
-
                 offsetY += btn.getHeight();
             }
         }
@@ -53,12 +42,9 @@ public class EntityListButton extends Button {
 
     @Override
     public void mouseClicked(int mouseX, int mouseY, int mouseButton) {
-
         if (mouseButton == 0 && this.isHovering(mouseX, mouseY)) {
-            this.extended = !extended;
-            mc.getSoundManager().play(
-                    PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1f)
-            );
+            this.extended = !this.extended;
+            mc.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1f));
         }
 
         if (extended) {
@@ -70,14 +56,12 @@ public class EntityListButton extends Button {
 
     @Override
     public int getHeight() {
-        int h = 14;
-
+        int baseHeight = 14;
         if (extended) {
             for (BooleanButton btn : module.getEntityButtons()) {
-                h += btn.getHeight();
+                baseHeight += btn.getHeight();
             }
         }
-
-        return h;
+        return baseHeight;
     }
 }
