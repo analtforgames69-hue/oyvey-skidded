@@ -1,90 +1,70 @@
-package me.alpha432.oyvey.features.modules.combat;
+package me.alpha432.oyvey.features.gui;
 
-import me.alpha432.oyvey.features.modules.Module;
-import me.alpha432.oyvey.features.gui.KillauraEntitySelectorGUI;
+import me.alpha432.oyvey.features.modules.combat.TargetType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Environment(EnvType.CLIENT)
-public class Killaura extends Module {
+public class KillauraEntitySelectorGUI {
 
+    private final Map<TargetType, Boolean> targetToggles = new EnumMap<>(TargetType.class);
+    private String searchQuery = "";
     private final MinecraftClient mc = MinecraftClient.getInstance();
-    private final KillauraEntitySelectorGUI selectorGUI = new KillauraEntitySelectorGUI();
-    private float rotationSpeed = 10.0f; // degrees per tick
 
-    public Killaura() {
-        super("Killaura", "Automatically attacks entities", Category.COMBAT, true, false, false);
+    public KillauraEntitySelectorGUI() {
+        for (TargetType type : TargetType.values()) {
+            targetToggles.put(type, type == TargetType.PLAYER); // Default: only players
+        }
     }
 
-    @Override
-    public void onTick() {
-        if (mc.player == null || mc.world == null) return;
+    public void setSearchQuery(String query) {
+        this.searchQuery = query.toLowerCase();
+    }
 
-        mc.world.getEntities().forEach(entity -> {
-            if (!(entity instanceof LivingEntity) || entity == mc.player) return;
+    public void toggle(TargetType type) {
+        targetToggles.put(type, !targetToggles.get(type));
+    }
 
-            TargetType type = getEntityType(entity);
-            if (type != null && selectorGUI.isEnabled(type)) {
-                rotateHeadSmoothly(mc.player, entity);
-                attackEntityIfReady(mc.player, entity);
+    public boolean isEnabled(TargetType type) {
+        return targetToggles.getOrDefault(type, false);
+    }
+
+    public List<TargetType> getVisibleTargets() {
+        return Arrays.stream(TargetType.values())
+                .filter(t -> t.name().toLowerCase().contains(searchQuery))
+                .collect(Collectors.toList());
+    }
+
+    public void render(MatrixStack matrices, int mouseX, int mouseY) {
+        int y = 20;
+        TextRenderer textRenderer = mc.textRenderer;
+
+        // Draw search query
+        textRenderer.draw(matrices, Text.of("Search: " + searchQuery), 10f, 10f, 0xFFFFFF);
+
+        // Draw target types
+        for (TargetType type : getVisibleTargets()) {
+            boolean enabled = isEnabled(type);
+            String labelStr = (enabled ? "[X] " : "[ ] ") + type.name();
+            textRenderer.draw(matrices, Text.of(labelStr), 10f, (float)y, 0xFFFFFF);
+            y += 12;
+        }
+    }
+
+    public void handleClick(double mouseX, double mouseY) {
+        int y = 20;
+        for (TargetType type : getVisibleTargets()) {
+            if (mouseX >= 10 && mouseX <= 110 && mouseY >= y && mouseY <= y + 10) {
+                toggle(type);
             }
-        });
-    }
-
-    private TargetType getEntityType(net.minecraft.entity.Entity entity) {
-        if (entity instanceof PlayerEntity) return TargetType.PLAYER;
-        // Map other mobs
-        String name = entity.getType().toString().toUpperCase();
-        try {
-            return TargetType.valueOf(name);
-        } catch (IllegalArgumentException e) {
-            return null; // Not in enum
+            y += 12;
         }
-    }
-
-    private void rotateHeadSmoothly(ClientPlayerEntity player, net.minecraft.entity.Entity target) {
-        Vec3d eyePos = player.getEyePos();
-        Vec3d targetPos = target.getEyePos();
-        float[] angles = calcAngle(eyePos, targetPos);
-
-        float yawDelta = wrapDegrees(angles[0] - player.getYaw());
-        float pitchDelta = wrapDegrees(angles[1] - player.getPitch());
-
-        // Rotate model smoothly without changing camera
-        player.setYaw(player.getYaw() + Math.signum(yawDelta) * Math.min(rotationSpeed, Math.abs(yawDelta)));
-        player.setPitch(player.getPitch() + Math.signum(pitchDelta) * Math.min(rotationSpeed, Math.abs(pitchDelta)));
-    }
-
-    private void attackEntityIfReady(ClientPlayerEntity player, net.minecraft.entity.Entity target) {
-        if (player.getAttackCooldownProgress(0.5f) >= 1.0f) {
-            mc.interactionManager.attackEntity(player, target);
-            player.swingHand(player.getActiveHand());
-        }
-    }
-
-    private float[] calcAngle(Vec3d from, Vec3d to) {
-        double dx = to.x - from.x;
-        double dy = to.y - from.y;
-        double dz = to.z - from.z;
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        float yaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
-        float pitch = (float) -Math.toDegrees(Math.atan2(dy, dist));
-        return new float[]{yaw, pitch};
-    }
-
-    private float wrapDegrees(float value) {
-        value %= 360;
-        if (value >= 180) value -= 360;
-        if (value < -180) value += 360;
-        return value;
-    }
-
-    public KillauraEntitySelectorGUI getSelectorGUI() {
-        return selectorGUI;
     }
 }
