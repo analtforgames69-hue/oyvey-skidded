@@ -5,7 +5,7 @@ import me.alpha432.oyvey.features.gui.items.buttons.BindButton;
 import me.alpha432.oyvey.features.gui.items.buttons.EntityListButton;
 import me.alpha432.oyvey.features.settings.Setting;
 import me.alpha432.oyvey.util.MathUtil;
-import me.alpha432.oyvey.util.Timer;
+import me.alpha432.oyvey.util.models.Timer;
 
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
