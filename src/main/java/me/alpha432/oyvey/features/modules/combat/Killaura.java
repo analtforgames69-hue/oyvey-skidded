@@ -1,70 +1,56 @@
-package me.alpha432.oyvey.features.gui;
+package me.alpha432.oyvey.features.modules.combat;
 
-import me.alpha432.oyvey.features.modules.combat.TargetType;
+import me.alpha432.oyvey.features.modules.Module;
+import me.alpha432.oyvey.features.gui.KillauraEntitySelectorGUI;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
 
-import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Environment(EnvType.CLIENT)
-public class KillauraEntitySelectorGUI {
+public class Killaura extends Module {
 
-    private final Map<TargetType, Boolean> targetToggles = new EnumMap<>(TargetType.class);
-    private String searchQuery = "";
-    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final Minecraft mc = Minecraft.getInstance();
+    public KillauraEntitySelectorGUI selectorGUI;
 
-    public KillauraEntitySelectorGUI() {
-        for (TargetType type : TargetType.values()) {
-            targetToggles.put(type, type == TargetType.PLAYER); // Default: only players
+    public Killaura() {
+        super("Killaura", "Attacks nearby entities automatically", Category.COMBAT);
+        selectorGUI = new KillauraEntitySelectorGUI();
+    }
+
+    @Override
+    public void onTick() {
+        LocalPlayer player = mc.player;
+        if (player == null || !player.isAlive()) return;
+
+        // Get entities within range
+        List<LivingEntity> targets = mc.level.entitiesForRendering(LivingEntity.class, entity ->
+                entity != player && entity.isAlive() && mc.player.distanceToSqr(entity) <= 16
+                        && isValidTarget(entity)
+        );
+
+        for (LivingEntity target : targets) {
+            attackEntity(target);
         }
     }
 
-    public void setSearchQuery(String query) {
-        this.searchQuery = query.toLowerCase();
+    private boolean isValidTarget(Entity entity) {
+        if (!(entity instanceof LivingEntity)) return false;
+        if (entity instanceof Player && !selectorGUI.isEnabled(TargetType.PLAYER)) return false;
+        if (entity.getType().getRegistryName().getPath().contains("monster") && !selectorGUI.isEnabled(TargetType.MOB)) return false;
+        if (entity.getType().getRegistryName().getPath().contains("animal") && !selectorGUI.isEnabled(TargetType.ANIMAL)) return false;
+        return true;
     }
 
-    public void toggle(TargetType type) {
-        targetToggles.put(type, !targetToggles.get(type));
-    }
-
-    public boolean isEnabled(TargetType type) {
-        return targetToggles.getOrDefault(type, false);
-    }
-
-    public List<TargetType> getVisibleTargets() {
-        return Arrays.stream(TargetType.values())
-                .filter(t -> t.name().toLowerCase().contains(searchQuery))
-                .collect(Collectors.toList());
-    }
-
-    public void render(MatrixStack matrices, int mouseX, int mouseY) {
-        int y = 20;
-        TextRenderer textRenderer = mc.textRenderer;
-
-        // Draw search query
-        textRenderer.draw(matrices, Text.of("Search: " + searchQuery), 10f, 10f, 0xFFFFFF);
-
-        // Draw target types
-        for (TargetType type : getVisibleTargets()) {
-            boolean enabled = isEnabled(type);
-            String labelStr = (enabled ? "[X] " : "[ ] ") + type.name();
-            textRenderer.draw(matrices, Text.of(labelStr), 10f, (float)y, 0xFFFFFF);
-            y += 12;
-        }
-    }
-
-    public void handleClick(double mouseX, double mouseY) {
-        int y = 20;
-        for (TargetType type : getVisibleTargets()) {
-            if (mouseX >= 10 && mouseX <= 110 && mouseY >= y && mouseY <= y + 10) {
-                toggle(type);
-            }
-            y += 12;
-        }
+    private void attackEntity(LivingEntity entity) {
+        mc.player.lookAt(entity); // Rotate toward target
+        mc.player.swingHand(mc.player.getMainHandItem().getUseAnimation().ordinal()); // Animate swing
+        mc.player.attack(entity); // Attack
     }
 }
