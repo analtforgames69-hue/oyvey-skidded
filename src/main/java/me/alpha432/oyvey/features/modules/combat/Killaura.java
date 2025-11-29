@@ -1,50 +1,29 @@
-package me.alpha432.oyvey.features.modules.combat;
+package me.alpha432.oyvey.util;
 
-import me.alpha432.oyvey.features.modules.Module;
-import me.alpha432.oyvey.features.setting.Setting;
-import me.alpha432.oyvey.util.models.Timer;
-import me.alpha432.oyvey.util.MathUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
+public class MathUtil {
 
-public class Killaura extends Module {
-    private final Timer attackTimer = new Timer();
-
-    public Setting<Float> range = this.register(new Setting<>("Range", 5.0f, 1.0f, 10.0f));
-    public Setting<Boolean> rotate = this.register(new Setting<>("Rotate", true));
-    public Setting<TargetMode> targetMode = this.register(new Setting<>("TargetMode", TargetMode.CLOSEST));
-
-    public Killaura() {
-        super("Killaura", "Attacks nearby players automatically", Category.COMBAT);
+    public static float smoothRotation(float current, float target, float speed) {
+        float delta = wrapDegrees(target - current);
+        if (delta > speed) delta = speed;
+        if (delta < -speed) delta = -speed;
+        return current + delta;
     }
 
-    @Override
-    public void onUpdate() {
-        if (mc.player == null || mc.world == null) return;
-
-        for (Entity entity : mc.world.getEntities()) {
-            if (!(entity instanceof PlayerEntity player)) continue;
-            if (player == mc.player) continue; // skip self
-            if (mc.player.squaredDistanceTo(player) > range.get() * range.get()) continue;
-
-            // Rotation
-            if (rotate.get()) {
-                float[] rotations = MathUtil.calculateLookAt(player.getX(), player.getY() + player.getEyeHeight(player.getPose()), player.getZ(), mc.player);
-                mc.player.setYaw(MathUtil.smoothRotation(mc.player.getYaw(), rotations[0], 10f));
-                mc.player.setPitch(MathUtil.smoothRotation(mc.player.getPitch(), rotations[1], 10f));
-            }
-
-            // Attack
-            if (attackTimer.passedMs(100)) { // 10 CPS max
-                mc.player.attack(entity);
-                mc.player.swingHand(mc.player.getActiveHand());
-                attackTimer.reset();
-            }
-        }
+    public static float wrapDegrees(float value) {
+        value = value % 360.0F;
+        if (value >= 180.0F) value -= 360.0F;
+        if (value < -180.0F) value += 360.0F;
+        return value;
     }
 
-    public enum TargetMode {
-        CLOSEST,
-        HEALTH
+    public static float[] calculateLookAt(double x, double y, double z, net.minecraft.entity.Entity fromEntity) {
+        double diffX = x - fromEntity.getX();
+        double diffY = y - (fromEntity.getY() + fromEntity.getEyeHeight(fromEntity.getPose()));
+        double diffZ = z - fromEntity.getZ();
+        double dist = Math.sqrt(diffX * diffX + diffZ * diffZ);
+
+        float yaw = (float) Math.toDegrees(Math.atan2(diffZ, diffX)) - 90f;
+        float pitch = (float) -Math.toDegrees(Math.atan2(diffY, dist));
+        return new float[]{yaw, pitch};
     }
 }
