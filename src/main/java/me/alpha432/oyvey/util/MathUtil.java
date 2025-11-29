@@ -11,8 +11,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 
-public class MathUtil
-        implements Util {
+public class MathUtil implements Util {
     private static final Random random = new Random();
 
     public static int getRandom(int min, int max) {
@@ -51,22 +50,22 @@ public class MathUtil
         return MathHelper.wrapDegrees(value);
     }
 
+    public static double wrapDegrees(double value) {
+        value = value % 360.0;
+        if (value >= 180.0) value -= 360.0;
+        if (value < -180.0) value += 360.0;
+        return value;
+    }
+
+    // Smooth rotation for Killaura
     public static float smoothRotation(float current, float target, float speed) {
-        float delta = wrapDegrees(target - current);
+        float delta = (float) wrapDegrees(target - current);
         if (delta > speed) delta = speed;
         if (delta < -speed) delta = -speed;
         return current + delta;
     }
 
-    // Already have wrapDegrees(float), but here is a safe version for smoothRotation
-    public static float wrapDegrees(float value) {
-        value = value % 360.0F;
-        if (value >= 180.0F) value -= 360.0F;
-        if (value < -180.0F) value += 360.0F;
-        return value;
-    }
-
-    // Calculate yaw/pitch from one entity to another (or any Vec3d)
+    // Calculate yaw/pitch from one entity to another
     public static float[] calculateLookAt(double x, double y, double z, Entity fromEntity) {
         double diffX = x - fromEntity.getX();
         double diffY = y - (fromEntity.getY() + fromEntity.getEyeHeight(fromEntity.getPose()));
@@ -77,14 +76,9 @@ public class MathUtil
         float pitch = (float) -Math.toDegrees(Math.atan2(diffY, dist));
         return new float[]{yaw, pitch};
     }
-}
-
-    public static double wrapDegrees(double value) {
-        return MathHelper.wrapDegrees(value);
-    }
 
     public static Vec3d roundVec(Vec3d vec3d, int places) {
-        return new Vec3d(MathUtil.round(vec3d.x, places), MathUtil.round(vec3d.y, places), MathUtil.round(vec3d.z, places));
+        return new Vec3d(round(vec3d.x, places), round(vec3d.y, places), round(vec3d.z, places));
     }
 
     public static double square(double input) {
@@ -92,69 +86,32 @@ public class MathUtil
     }
 
     public static double round(double value, int places) {
-        if (places < 0) {
-            throw new IllegalArgumentException();
-        }
+        if (places < 0) throw new IllegalArgumentException();
         BigDecimal bd = BigDecimal.valueOf(value);
         bd = bd.setScale(places, RoundingMode.FLOOR);
         return bd.doubleValue();
     }
 
-    public static float wrap(float valI) {
-        float val = valI % 360.0f;
-        if (val >= 180.0f) {
-            val -= 360.0f;
-        }
-        if (val < -180.0f) {
-            val += 360.0f;
-        }
-        return val;
-    }
-
-    public static Vec3d direction(float yaw) {
-        return new Vec3d(Math.cos(MathUtil.degToRad(yaw + 90.0f)), 0.0, Math.sin(MathUtil.degToRad(yaw + 90.0f)));
-    }
-
     public static float round(float value, int places) {
-        if (places < 0) {
-            throw new IllegalArgumentException();
-        }
+        if (places < 0) throw new IllegalArgumentException();
         BigDecimal bd = BigDecimal.valueOf(value);
         bd = bd.setScale(places, RoundingMode.FLOOR);
         return bd.floatValue();
     }
 
-    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map, boolean descending) {
-        LinkedList<Map.Entry<K, V>> list = new LinkedList<>(map.entrySet());
-        if (descending) {
-            list.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
-        } else {
-            list.sort(Map.Entry.comparingByValue());
-        }
-        LinkedHashMap<K, V> result = new LinkedHashMap<>();
-        for (Map.Entry<K, V> entry : list) {
-            result.put(entry.getKey(), entry.getValue());
-        }
-        return result;
+    public static float wrap(float valI) {
+        float val = valI % 360.0f;
+        if (val >= 180.0f) val -= 360.0f;
+        if (val < -180.0f) val += 360.0f;
+        return val;
     }
 
-    public static String getTimeOfDay() {
-        Calendar c = Calendar.getInstance();
-        int timeOfDay = c.get(11);
-        if (timeOfDay < 12) {
-            return "Good Morning ";
-        }
-        if (timeOfDay < 16) {
-            return "Good Afternoon ";
-        }
-        if (timeOfDay < 21) {
-            return "Good Evening ";
-        }
-        return "Good Night ";
+    public static Vec3d direction(float yaw) {
+        return new Vec3d(Math.cos(degToRad(yaw + 90f)), 0.0, Math.sin(degToRad(yaw + 90f)));
     }
 
     public static double radToDeg(double rad) {
-        return rad * (double) 57.29578f;
+        return rad * 57.29578f;
     }
 
     public static double degToRad(double deg) {
