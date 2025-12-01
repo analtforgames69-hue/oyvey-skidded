@@ -2,62 +2,61 @@ package me.alpha432.oyvey.features.modules.combat;
 
 import me.alpha432.oyvey.features.gui.KillauraEntitySelectorGUI;
 import me.alpha432.oyvey.features.modules.Module;
-import net.minecraft.client.Minecraft;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.Hand;
 
 public class Killaura extends Module {
 
-    private final Minecraft mc = Minecraft.getInstance();
-    private boolean enabled = false;
-    private final KillauraEntitySelectorGUI gui = new KillauraEntitySelectorGUI();
+    private final MinecraftClient mc = MinecraftClient.getInstance();
+    private final KillauraEntitySelectorGUI selector = new KillauraEntitySelectorGUI();
 
     public Killaura() {
-        super("Killaura", "Automatically attacks nearby entities", Category.COMBAT, true, false, false);
+        super("Killaura", Category.COMBAT);
     }
 
     @Override
-    public void onTick() {
-        if (!enabled || mc.player == null || mc.level == null) return;
-        doKillaura();
-    }
+    public void onUpdate() {
+        if (mc.player == null || mc.world == null) return;
 
-    private void doKillaura() {
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity living)) continue;
-            if (entity == mc.player) continue;
-            if (!gui.isValidTarget(living)) continue;
+        for (Entity entity : mc.world.getEntities()) {
 
-            // Attack only when attack cooldown is full
-            if (mc.player.getAttackStrengthScale(0.5F) >= 1.0F) {
-                rotateTo(living);
-                mc.player.swing(InteractionHand.MAIN_HAND);
-                mc.player.attack(living);
-            }
+            if (!(entity instanceof LivingEntity target)) continue;
+            if (target == mc.player) continue; // ignore self
+            if (!selector.isValidTarget(target)) continue;
+
+            if (mc.player.squaredDistanceTo(target) > 4.5) continue;
+
+            // attack cooldown check
+            if (mc.player.getAttackCooldownProgress(0) < 1) continue;
+
+            rotateTo(target);
+
+            mc.interactionManager.attackEntity(mc.player, target);
+            mc.player.swingHand(Hand.MAIN_HAND);
+
+            break; // attack one target per tick
         }
     }
 
-    private void rotateTo(Entity entity) {
-        var eyePos = mc.player.getEyePosition(1.0F);
-        var targetPos = entity.position().add(0, entity.getBbHeight() / 2, 0);
-        var diff = targetPos.subtract(eyePos);
+    private void rotateTo(Entity e) {
+        double dx = e.getX() - mc.player.getX();
+        double dz = e.getZ() - mc.player.getZ();
+        double dy = (e.getY() + e.getHeight() / 2.0) - (mc.player.getEyeY());
 
-        float yaw = (float) Math.toDegrees(Math.atan2(diff.z, diff.x)) - 90;
-        float pitch = (float) -Math.toDegrees(Math.atan2(diff.y, Math.sqrt(diff.x * diff.x + diff.z * diff.z)));
+        double dist = Math.sqrt(dx * dx + dz * dz);
 
-        mc.player.yRot = yaw;
-        mc.player.xRot = pitch;
+        float yaw = (float)(Math.toDegrees(Math.atan2(dz, dx)) - 90f);
+        float pitch = (float)(-Math.toDegrees(Math.atan2(dy, dist)));
+
+        mc.player.setYaw(yaw);
+        mc.player.setPitch(pitch);
     }
 
-    // GUI access
-    public KillauraEntitySelectorGUI getGui() {
-        return gui;
-    }
-
-    // Toggle the module
-    public void toggle() {
-        enabled = !enabled;
+    @Override
+    public void onEnable() {
+        super.onEnable();
     }
 }
