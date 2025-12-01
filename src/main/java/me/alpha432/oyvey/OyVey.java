@@ -39,13 +39,28 @@ public class OyVey implements ModInitializer, ClientModInitializer {
         holeManager = new HoleManager();
     }
 
-    @Override public void onInitializeClient() {
-        eventManager.init();
-        moduleManager.init();
+@Override
+public void onInitializeClient() {
+    // Ensure all managers are initialized
+    if (eventManager == null) eventManager = new EventManager();
+    if (moduleManager == null) moduleManager = new ModuleManager();
+    if (serverManager == null) serverManager = new ServerManager();
+    if (rotationManager == null) rotationManager = new RotationManager();
+    if (positionManager == null) positionManager = new PositionManager();
+    if (friendManager == null) friendManager = new FriendManager();
+    if (colorManager == null) colorManager = new ColorManager();
+    if (commandManager == null) commandManager = new CommandManager();
+    if (speedManager == null) speedManager = new SpeedManager();
+    if (holeManager == null) holeManager = new HoleManager();
 
-        configManager = new ConfigManager();
-        configManager.load();
-        colorManager.init();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> configManager.save()));
-    }
+    // Now it’s safe to call init methods
+    eventManager.init();
+    moduleManager.init();
+
+    if (configManager == null) configManager = new ConfigManager();
+    configManager.load();
+    colorManager.init();
+
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> configManager.save()));
 }
+
