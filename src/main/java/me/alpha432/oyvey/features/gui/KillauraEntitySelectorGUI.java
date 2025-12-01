@@ -1,46 +1,36 @@
 package me.alpha432.oyvey.features.gui;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.text.Text;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class KillauraEntitySelectorGUI {
 
-    private final Minecraft mc = Minecraft.getInstance();
-    private final Set<Class<? extends LivingEntity>> selectedEntities = new HashSet<>(List.of(Player.class, LivingEntity.class));
+    private final MinecraftClient mc = MinecraftClient.getInstance();
 
-    // Check if the entity is selected for attack
-    public boolean isValidTarget(LivingEntity entity) {
-        return selectedEntities.contains(entity.getClass()) && entity.isAlive();
+    private final Set<Class<? extends LivingEntity>> selected =
+            new HashSet<>(Set.of(PlayerEntity.class));
+
+    public boolean isValidTarget(LivingEntity e) {
+        for (Class<?> clazz : selected) {
+            if (clazz.isInstance(e)) return true;
+        }
+        return false;
     }
 
-    // Render GUI
-    public void render(GuiGraphics graphics) {
-        int y = 10;
-        List<Class<? extends LivingEntity>> types = List.of(Player.class, LivingEntity.class);
-        for (Class<? extends LivingEntity> clazz : types) {
-            Component text = Component.literal(clazz.getSimpleName() + (selectedEntities.contains(clazz) ? " [X]" : ""));
-            graphics.drawString(mc.font, text, 10, y, 0xFFFFFF);
-            y += 12;
-        }
-    }
+    public void render(DrawContext ctx) {
+        int x = 10, y = 10;
 
-    // Handle mouse click
-    public void onMouseClick(double mouseX, double mouseY, int button) {
-        int y = 10;
-        List<Class<? extends LivingEntity>> types = List.of(Player.class, LivingEntity.class);
-        for (Class<? extends LivingEntity> clazz : types) {
-            if (mouseY > y && mouseY < y + 12) {
-                if (selectedEntities.contains(clazz)) selectedEntities.remove(clazz);
-                else selectedEntities.add(clazz);
-            }
-            y += 12;
-        }
+        ctx.drawText(mc.textRenderer, Text.literal("Killaura Target Selector"), x, y, 0xFFFFFF, false);
+        y += 15;
+
+        // Player toggle
+        boolean players = selected.contains(PlayerEntity.class);
+        ctx.drawText(mc.textRenderer, Text.literal("[ " + (players ? "X" : " ") + " ] Players"), x, y, 0xFFFFFF, false);
     }
 }
