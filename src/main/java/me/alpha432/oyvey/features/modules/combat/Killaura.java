@@ -14,7 +14,14 @@ public class Killaura extends Module {
     private final KillauraEntitySelectorGUI selector = new KillauraEntitySelectorGUI();
 
     public Killaura() {
-        super("Killaura", Category.COMBAT);
+        super(
+            "Killaura",
+            "Automatically attacks nearby entities",
+            Category.COMBAT,
+            true,   // has settings
+            false,  // default disabled
+            true    // visible
+        );
     }
 
     @Override
@@ -24,12 +31,11 @@ public class Killaura extends Module {
         for (Entity entity : mc.world.getEntities()) {
 
             if (!(entity instanceof LivingEntity target)) continue;
-            if (target == mc.player) continue; // ignore self
+            if (target == mc.player) continue;
             if (!selector.isValidTarget(target)) continue;
 
             if (mc.player.squaredDistanceTo(target) > 4.5) continue;
 
-            // attack cooldown check
             if (mc.player.getAttackCooldownProgress(0) < 1) continue;
 
             rotateTo(target);
@@ -37,26 +43,21 @@ public class Killaura extends Module {
             mc.interactionManager.attackEntity(mc.player, target);
             mc.player.swingHand(Hand.MAIN_HAND);
 
-            break; // attack one target per tick
+            break;
         }
     }
 
     private void rotateTo(Entity e) {
         double dx = e.getX() - mc.player.getX();
         double dz = e.getZ() - mc.player.getZ();
-        double dy = (e.getY() + e.getHeight() / 2.0) - (mc.player.getEyeY());
+        double dy = (e.getY() + e.getHeight() / 2.0) - mc.player.getEyeY();
 
         double dist = Math.sqrt(dx * dx + dz * dz);
 
-        float yaw = (float)(Math.toDegrees(Math.atan2(dz, dx)) - 90f);
-        float pitch = (float)(-Math.toDegrees(Math.atan2(dy, dist)));
+        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90F);
+        float pitch = (float) (-Math.toDegrees(Math.atan2(dy, dist)));
 
         mc.player.setYaw(yaw);
         mc.player.setPitch(pitch);
-    }
-
-    @Override
-    public void onEnable() {
-        super.onEnable();
     }
 }
