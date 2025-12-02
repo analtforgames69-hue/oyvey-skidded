@@ -1,69 +1,61 @@
 package me.alpha432.oyvey.features.modules.player;
 
 import me.alpha432.oyvey.features.modules.Module;
-import net.minecraft.block.Blocks;
+import me.alpha432.oyvey.mixininterface.IPlayerInventory;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 
 public class WaterClutch extends Module {
 
     private final MinecraftClient mc = MinecraftClient.getInstance();
-    private boolean placedWater = false;
+    private int previousSlot = -1;
+    private boolean clutching = false;
 
     public WaterClutch() {
-        super("WaterClutch", "Automatically water-clutches from fall damage", Category.PLAYER, true, false, false);
+        super("WaterClutch", "Automatically places water to prevent fall damage", Category.PLAYER, true, false, false);
     }
 
     @Override
-    public void onUpdate() {
+    public void onEnable() {
+        previousSlot = -1;
+        clutching = false;
+    }
+
+    @Override
+    public void onTick() {
         if (mc.player == null || mc.world == null) return;
 
-        double fallDistance = mc.player.fallDistance;
-        BlockPos below = mc.player.getBlockPos().down();
+        // Only try to clutch if falling
+        if (mc.player.fallDistance > 3.0f && !mc.player.isOnGround()) {
+            int waterSlot = findWaterBucket();
 
-        if (placedWater) {
-            if (mc.world.getBlockState(below).getBlock() == Blocks.WATER) {
-                int emptySlot = findEmptyBucketSlot();
-                if (emptySlot != -1) swapHotbarSlot(emptySlot);
+            if (waterSlot != -1) {
+                IPlayerInventory inv = (IPlayerInventory) mc.player.getInventory();
+
+                // Store previous slot if not already
+                if (previousSlot == -1) previousSlot = inv.getSelectedSlot();
+
+                // Switch to water bucket
+                inv.setSelectedSlot(waterSlot);
+
+                // Simulate right-click
+                mc.interactionManager.interactItem(mc.player, mc.world, mc.player.getStackInHand(mc.player.getActiveHand()));
+
+                clutching = true;
             }
-            placedWater = false;
-            return;
-        }
-
-        if (fallDistance >= 4f) {
-            int waterSlot = findWaterBucketSlot();
-            if (waterSlot == -1) return;
-
-            swapHotbarSlot(waterSlot);
-
-            mc.player.setPitch(90f);
-
-            mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND,
-                    new BlockHitResult(mc.player.getPos(), Direction.UP, below, false));
-
-            placedWater = true;
+        } else if (clutching) {
+            // Return to previous slot
+            IPlayerInventory inv = (IPlayerInventory) mc.player.getInventory();
+            if (previousSlot != -1) inv.setSelectedSlot(previousSlot);
+            previousSlot = -1;
+            clutching = false;
         }
     }
 
-    private void swapHotbarSlot(int slot) {
-        mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
-    }
-
-    private int findWaterBucketSlot() {
+    // Find water bucket in hotbar
+    private int findWaterBucket() {
         for (int i = 0; i < 9; i++) {
             if (mc.player.getInventory().getStack(i).getItem() == Items.WATER_BUCKET) return i;
-        }
-        return -1;
-    }
-
-    private int findEmptyBucketSlot() {
-        for (int i = 0; i < 9; i++) {
-            if (mc.player.getInventory().getStack(i).getItem() == Items.BUCKET) return i;
         }
         return -1;
     }
