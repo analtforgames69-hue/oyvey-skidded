@@ -2,6 +2,8 @@ package me.alpha432.oyvey.features.modules.player;
 
 import me.alpha432.oyvey.features.modules.Module;
 import me.alpha432.oyvey.features.modules.Module.Category;
+import me.alpha432.oyvey.mixin.PlayerInventoryAccessor;
+import me.alpha432.oyvey.mixin.EntityAccessor;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
@@ -18,33 +20,33 @@ public class WaterClutch extends Module {
     @Override
     public void onUpdate() {
         ClientPlayerEntity player = mc.player;
-
         if (player == null) return;
 
-        // Only trigger if falling 4+ blocks
+        // Trigger if falling 4+ blocks
         if (!player.isOnGround() && player.fallDistance > 4) {
-            // Find water bucket in hotbar
             int waterSlot = findWaterBucketSlot(player);
-            if (waterSlot == -1) return; // No bucket found
+            if (waterSlot == -1) return;
+
+            PlayerInventoryAccessor inv = (PlayerInventoryAccessor) player.getInventory();
+            EntityAccessor entity = (EntityAccessor) player;
 
             // Remember previous slot
-            if (previousSlot == -1) previousSlot = player.getInventory().selectedSlot;
+            if (previousSlot == -1) previousSlot = inv.getSelectedSlot();
 
-            // Switch to bucket
-            player.getInventory().selectedSlot = waterSlot;
+            // Switch to water bucket
+            inv.setSelectedSlot(waterSlot);
 
-            // Rotate head to look down 90 degrees in third-person
-            player.pitch = 90f; // Look straight down
-            player.prevPitch = 90f;
+            // Look down (pitch only, third-person)
+            entity.setPitch(90f);
 
-            // Use bucket
+            // Place water
             ItemStack stack = player.getStackInHand(Hand.MAIN_HAND);
             if (stack.getItem() == Items.WATER_BUCKET) {
                 mc.interactionManager.interactItem(player, Hand.MAIN_HAND);
             }
 
             // Restore previous slot
-            player.getInventory().selectedSlot = previousSlot;
+            inv.setSelectedSlot(previousSlot);
             previousSlot = -1;
         }
     }
