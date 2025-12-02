@@ -14,7 +14,6 @@ public class WaterClutch extends Module {
 
     private final MinecraftClient mc = MinecraftClient.getInstance();
     private boolean placedWater = false;
-    private int previousSlot = -1;
 
     public WaterClutch() {
         super("WaterClutch", "Automatically water-clutches from fall damage", Category.PLAYER, true, false, false);
@@ -40,8 +39,6 @@ public class WaterClutch extends Module {
             int waterSlot = findWaterBucketSlot();
             if (waterSlot == -1) return;
 
-            // Save current slot using packet (no access to selectedSlot)
-            previousSlot = mc.player.getInventory().selectedSlot; // just for our memory, won't assign
             swapHotbarSlot(waterSlot);
 
             mc.player.setPitch(90f);
@@ -54,7 +51,6 @@ public class WaterClutch extends Module {
     }
 
     private void swapHotbarSlot(int slot) {
-        // Send packet to server to change selected slot
         mc.player.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
     }
 
