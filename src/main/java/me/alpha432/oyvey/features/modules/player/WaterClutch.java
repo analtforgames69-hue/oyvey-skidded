@@ -1,6 +1,5 @@
 package me.alpha432.oyvey.features.modules.player;
 
-import me.alpha432.oyvey.event.impl.TickEvent;
 import me.alpha432.oyvey.features.modules.Module;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.Items;
@@ -16,7 +15,7 @@ public class WaterClutch extends Module {
     }
 
     @Override
-    public void onTick(TickEvent event) {
+    public void onUpdate() {
         if (mc.player == null || mc.world == null) return;
 
         // Only trigger if falling from height
